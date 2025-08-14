@@ -1,0 +1,48 @@
+﻿<UserControl x:Class="CredentialEvaluationApp.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CredentialEvaluationApp"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800"
+             Background="LightGray">
+    <!-- height = 450 -->
+
+    <!-- Grading Scale Editor -->
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                      Margin="20,0,30,0"
+                      HorizontalContentAlignment="Stretch"
+                      PanningMode="Both">
+
+            <StackPanel Margin="30,50,30,30">
+
+                <Button Content="Set Database Location"
+                        Margin="0,0,0,0"
+                        Width="144"
+                        Height="25"
+                        FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                        FontSize="11"
+                        FontWeight="Regular"
+                        Background="#F0F0F0"
+                        Foreground="Black"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="SetDatabaseLocation_Click"
+                        HorizontalAlignment="Left">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="7"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+
+            </StackPanel>
+            
+
+        </ScrollViewer>
+
+    </Grid>
+    
+</UserControl>

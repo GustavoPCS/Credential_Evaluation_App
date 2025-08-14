@@ -1,0 +1,32 @@
+﻿<Window x:Class="CredentialEvaluationApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CredentialEvaluationApp;assembly=CredentialEvaluationApp"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800"
+        Style="{StaticResource MaterialDesignWindow}"
+        Background="LightGray">
+
+
+    <Viewbox>
+
+        <Grid x:Name="MainGrid" Width="900" Height="500">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+
+
+            <!-- Sidebar -->
+            
+
+            <!-- Page Content -->
+            <ContentControl x:Name="MainContent" Grid.Column="1" />
+
+        </Grid>
+    </Viewbox>
+
+</Window>
