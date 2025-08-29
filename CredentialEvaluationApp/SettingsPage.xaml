@@ -12,15 +12,17 @@
     <!-- Grading Scale Editor -->
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                      Margin="20,0,30,0"
+                      Margin="20,50,30,30"
                       HorizontalContentAlignment="Stretch"
                       PanningMode="Both">
 
-            <StackPanel Margin="30,50,30,30">
+            <StackPanel Margin="30,0,0,30"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Top">
 
                 <Button Content="Set Database Location"
-                        Margin="0,0,0,0"
-                        Width="144"
+                        Margin="0,0,10,0"
+                        Width="150"
                         Height="25"
                         FontFamily="pack://application:,,,/Fonts/#Quicksand"
                         FontSize="11"
@@ -30,7 +32,8 @@
                         BorderThickness="0"
                         Cursor="Hand"
                         Click="SetDatabaseLocation_Click"
-                        HorizontalAlignment="Left">
+                        HorizontalAlignment="Left"
+                        Visibility="Visible">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="7"/>
@@ -38,11 +41,23 @@
                     </Button.Resources>
                 </Button>
 
+                <TextBox x:Name="databaseLocationTextbox"
+                         IsEnabled="False"
+                         Width="150"
+                         Height="25"
+                         Margin="0,0,0,0"
+                         FontSize="11"
+                         FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                         Background="#F0F0F0"
+                         BorderBrush="#CCCCCC"
+                         BorderThickness="1"
+                         HorizontalAlignment="Left"/>
+
             </StackPanel>
-            
+
 
         </ScrollViewer>
 
     </Grid>
-    
+
 </UserControl>

@@ -10,7 +10,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.UI.WebControls;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -37,14 +36,17 @@ namespace CredentialEvaluationApp
         TranscriptSection transcriptSection = new TranscriptSection();
         double hsGpa = 0.000;
         double uniGpa = -1;
+        double totalHSCredits = 0;
+        double totalUNICredits = 0;
 
         public ObservableCollection<CourseEntry> TranscriptCourses { get; set; }
         public ObservableCollection<string> AvailableGrades { get; set; } = new ObservableCollection<string>();
         ////////////////////////////////////////////////
 
         private List<TranscriptSection> allTranscripts = new List<TranscriptSection>();
-        private DataGridTemplateColumn deleteColumn;
         public int transcriptCount = 1;
+
+
 
         public CalculatorPage()
         {
@@ -61,6 +63,20 @@ namespace CredentialEvaluationApp
             allTranscripts.Add(newTranscript);
             TranscriptPanel.Children.Add(newTranscript);
 
+            AppEvents.GradingScaleUpdated += RefreshTranscriptSections;
+        }
+
+
+        private void RefreshTranscriptSections()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                foreach (var transcript in allTranscripts)
+                {
+                    transcript.LoadCountries();
+                    transcript.LoadGradingScales();
+                }
+            });
         }
 
         public void LoadStudentData(int student_Id)
@@ -87,6 +103,7 @@ namespace CredentialEvaluationApp
                 UniGpaHeaderTextBlock.Text = "University";
                 UniGpaTextBlock.Text = "GPA: ";
                 UniGpaNumTextBlock.Text = uniGpa.ToString("F3");
+                UniTotalCreditsTextBlock.Text = student.TotalUNICredits.ToString();
                 UniStackPanel.Margin = new Thickness(50, 0, 0, 10);
             }
             else
@@ -94,6 +111,7 @@ namespace CredentialEvaluationApp
                 UniGpaHeaderTextBlock.Text = "";
                 UniGpaTextBlock.Text = "";
                 UniGpaNumTextBlock.Text = "";
+                UniTotalCreditsTextBlock.Text = "";
                 UniStackPanel.Margin = new Thickness(0, 0, 0, 10);
             }
 
@@ -102,6 +120,7 @@ namespace CredentialEvaluationApp
             dateOfBirthPicker.SelectedDate = student.DOB;
             applicationTermTextBox.Text = student.Term;
             GpaTextBlock.Text = hsGpa.ToString("F3");
+            TotalCreditsTextBlock.Text = student.TotalHSCredits.ToString("F2");
 
             // Reset
             transcriptCount = 1;
@@ -113,7 +132,7 @@ namespace CredentialEvaluationApp
             {
                 var section = new TranscriptSection
                 {
-                    TranscriptTitle = $"Transcript {transcriptCount}",
+                    TranscriptTitle = transcript.TranscriptName,
                     TranscriptID = transcript.Transcript_ID,
                 };
 
@@ -128,20 +147,43 @@ namespace CredentialEvaluationApp
                     // Grading scale name
                     section.gradingScaleComboBox.SelectedItem = gradingScale.ScaleName;
 
+                    //GPA and TotalCredits
+                    section.TranscriptGPATextBlock.Text = transcript.TranscriptGPA.ToString("F3");
+                    section.TranscriptCreditsTextBlock.Text = transcript.TranscriptCredits.ToString("F2");
+
                     // Courses
+                    // Clear existing semesters
+                    section.Semesters.Clear();
+
+                    // Get courses for this transcript
                     transcript.Courses = DatabaseHelper.GetCoursesByTranscriptId(transcript.Transcript_ID);
-                    section.TranscriptCourses.Clear();
-                    foreach (var course in transcript.Courses)
+
+                    // Group courses by SemesterName
+                    var groupedCourses = transcript.Courses
+                        .GroupBy(c => c.SemesterName) // assuming CourseEntry has SemesterName property
+                        .OrderBy(g => g.Key); // optional: sort by semester name
+
+                    foreach (var group in groupedCourses)
                     {
-                        section.TranscriptCourses.Add(course);
+                        // Create a new Semester for this group
+                        var semester = new Semester { SemesterName = group.Key };
+
+                        // Add all courses for this semester
+                        foreach (var course in group)
+                        {
+                            semester.Courses.Add(course);
+                        }
+
+                        // Add semester to the section
+                        section.Semesters.Add(semester);
                     }
 
-                    section.transcriptDataGrid.ItemsSource = section.TranscriptCourses;
-
-                    if(transcript.Multiplier != 1)
+                    if (transcript.Multiplier != 1)
                     {
                         section.MultiplierTextBox.Text = transcript.Multiplier.ToString();
                     }
+
+
 
                 }
 
@@ -232,7 +274,8 @@ namespace CredentialEvaluationApp
             if (EvenlyWeightSection.Visibility == Visibility.Visible)
             {
                 EvenlyWeightSection.Visibility = Visibility.Collapsed;
-                ToggleEvenlyWeightButton.Margin = new Thickness(0, 0, 0, 0);
+                ToggleEvenlyWeightButton.Content = "Evenly Weight Transcripts";
+                ToggleEvenlyWeightButton.FontWeight = FontWeights.Regular;
             }
             else
             {
@@ -244,15 +287,16 @@ namespace CredentialEvaluationApp
                 {
                     EvenlyWeightButton.Visibility = Visibility.Collapsed;
                     EvenlyWeightErrorTextBlock.Visibility = Visibility.Visible;
-                } else
+                }
+                else
                 {
                     EvenlyWeightButton.Visibility = Visibility.Visible;
                     EvenlyWeightErrorTextBlock.Visibility = Visibility.Collapsed;
                 }
 
                 EvenlyWeightSection.Visibility = Visibility.Visible;
-                ToggleEvenlyWeightButton.Margin = new Thickness(0, 5, 0, 0);
-
+                ToggleEvenlyWeightButton.Content = "Evenly Weight Transcripts";
+                ToggleEvenlyWeightButton.FontWeight = FontWeights.Bold;
             }
 
         }
@@ -325,8 +369,11 @@ namespace CredentialEvaluationApp
             var totals = new List<double>();
             foreach (var transcript in selectedTranscripts)
             {
-                double totalHours = transcript.TranscriptCourses.Sum(c => c.CreditHours);
-                totals.Add(totalHours);
+                double transcriptTotal = transcript.Semesters
+                                                   .SelectMany(s => s.Courses)
+                                                   .Sum(c => c.CreditHours);
+
+                totals.Add(transcriptTotal);
             }
 
 
@@ -346,10 +393,14 @@ namespace CredentialEvaluationApp
                 MessageBox.Show($"Transcript {transcript.TranscriptTitle} - Scale Factor: {scaleFactor:F2}");
 
                 // Scale each course's credit hours
-                foreach (var course in transcript.TranscriptCourses)
+                foreach (var semester in transcript.Semesters)
                 {
-                    course.CreditHours = course.CreditHours * scaleFactor;
+                    foreach (var course in semester.Courses)
+                    {
+                        course.CreditHours = Math.Round(course.CreditHours * scaleFactor, 2);
+                    }
                 }
+
             }
 
             MessageBox.Show("Selected transcripts have been evenly weighted.");
@@ -369,32 +420,18 @@ namespace CredentialEvaluationApp
             double HS_USConvertedCredits = 0;
             double Uni_USConvertedCredits = 0;
 
+            double TranscriptPoints = 0;
+            double TranscriptCredits = 0;
+            totalHSCredits = 0;
+            totalUNICredits = 0;
+
+
             System.Diagnostics.Debug.WriteLine($"Total Transcripts: {allTranscripts.Count}");
 
             foreach (var transcript in allTranscripts)
             {
-                // Find and remove the existing "U.S. Grade" column if it exists
-                var existingColumn = transcript.transcriptDataGrid.Columns
-                    .OfType<DataGridTextColumn>()
-                    .FirstOrDefault(col => (col.Binding as Binding)?.Path.Path == "USConvertedGrade");
-
-                if (existingColumn != null)
-                {
-                    transcript.transcriptDataGrid.Columns.Remove(existingColumn);
-                }
-
-                // Now create and add the updated column
-                var usGradeColumn = new DataGridTextColumn
-                {
-                    Header = "U.S. Grade",
-                    Binding = new Binding("USConvertedGrade"),
-                    Width = new DataGridLength(100),
-                    IsReadOnly = true
-                };
-
-                transcript.transcriptDataGrid.Columns.Add(usGradeColumn);
-
-
+                TranscriptCredits = 0;
+                TranscriptPoints = 0;
 
                 string selectedScale = transcript.SelectedGradingScale;
                 var gradeMap = DatabaseHelper.GetGradeMappingForScale(selectedScale);
@@ -410,19 +447,23 @@ namespace CredentialEvaluationApp
                         if (gradingScale.Level == "High School")
                         {
                             highSchoolPoints += gpa * (course.CreditHours * multiplier);
-                            
+
                             highSchoolCredits += course.CreditHours;
                             HS_USConvertedCredits += course.CreditHours * multiplier;
+                            totalHSCredits += course.CreditHours * multiplier;
                         }
                         else if (gradingScale.Level == "University")
                         {
                             uni = true;
                             universityPoints += gpa * course.CreditHours;
-                            
+
                             universityCredits += course.CreditHours;
                             Uni_USConvertedCredits += course.CreditHours * multiplier;
+                            totalUNICredits += course.CreditHours * multiplier;
                         }
 
+                        TranscriptPoints += gpa * course.CreditHours * multiplier;
+                        TranscriptCredits += course.CreditHours * multiplier;
 
                         course.USConvertedGrade = US_EquivalentService.ConversionToLetterGrade(gpa);
 
@@ -433,10 +474,17 @@ namespace CredentialEvaluationApp
                     }
                 }
 
+                transcript.totalCredits = TranscriptCredits;
+                transcript.TranscriptCreditsTextBlock.Text = transcript.totalCredits.ToString("F2");
+
+                transcript.gpa = TranscriptCredits > 0 ? TranscriptPoints / TranscriptCredits : 0;
+                transcript.TranscriptGPATextBlock.Text = transcript.gpa.ToString("F3");
+
             }
 
             hsGpa = HS_USConvertedCredits > 0 ? highSchoolPoints / HS_USConvertedCredits : 0;
             GpaTextBlock.Text = hsGpa.ToString("F3");
+            TotalCreditsTextBlock.Text = totalHSCredits.ToString("F2");
             System.Diagnostics.Debug.WriteLine($"Total GPA: {hsGpa:F2}", "GPA");
 
             if (uni)
@@ -445,7 +493,10 @@ namespace CredentialEvaluationApp
                 UniGpaHeaderTextBlock.Text = "University";
                 UniGpaTextBlock.Text = "GPA: ";
                 UniGpaNumTextBlock.Text = uniGpa.ToString("F3");
+                UniCreditsTextBlock.Text = "Total Credits: ";
+                UniTotalCreditsTextBlock.Text = totalUNICredits.ToString("F2");
                 UniStackPanel.Margin = new Thickness(50, 0, 0, 10);
+                UniExportGrid.Visibility = Visibility.Visible;
 
             }
             else
@@ -454,11 +505,14 @@ namespace CredentialEvaluationApp
                 UniGpaHeaderTextBlock.Text = "";
                 UniGpaTextBlock.Text = "";
                 UniGpaNumTextBlock.Text = "";
+                UniCreditsTextBlock.Text = "";
+                UniTotalCreditsTextBlock.Text = "";
                 UniStackPanel.Margin = new Thickness(0, 0, 0, 10);
+                UniExportGrid.Visibility = Visibility.Collapsed;
             }
 
 
-            transcriptSection.transcriptDataGrid.Items.Refresh();       
+            //transcriptSection.transcriptDataGrid.Items.Refresh();       
 
         }
 
@@ -475,14 +529,14 @@ namespace CredentialEvaluationApp
             if (student.Student_Id == 0)
             {
                 // INSERT
-                studentId = DatabaseHelper.SaveStudentAndReturnId(firstName, lastName, dob, appTerm, hsGpa, uniGpa);
+                studentId = DatabaseHelper.SaveStudentAndReturnId(firstName, lastName, dob, appTerm, hsGpa, uniGpa, totalHSCredits, totalUNICredits);
                 student.Student_Id = studentId; // store for later use
             }
             else
             {
                 // UPDATE
                 studentId = student.Student_Id;
-                DatabaseHelper.UpdateStudent(studentId, firstName, lastName, dob, appTerm, hsGpa, uniGpa);
+                DatabaseHelper.UpdateStudent(studentId, firstName, lastName, dob, appTerm, hsGpa, uniGpa, totalHSCredits, totalUNICredits);
             }
 
 
@@ -500,28 +554,32 @@ namespace CredentialEvaluationApp
                     if (transcript.TranscriptID == 0)
                     {
                         // INSERT transcript
-                        transcriptId = DatabaseHelper.SaveTranscript(studentId, gradingScaleId, country, transcript.MultiplierValue);
+                        transcriptId = DatabaseHelper.SaveTranscript(studentId, gradingScaleId, country, transcript.MultiplierValue, transcript.TranscriptTitleTextBox.Text, transcript.gpa, transcript.totalCredits);
                         transcript.TranscriptID = transcriptId;
                     }
                     else
                     {
                         // UPDATE transcript
                         transcriptId = transcript.TranscriptID;
-                        DatabaseHelper.UpdateTranscript(transcriptId, gradingScaleId, country, transcript.MultiplierValue);
+                        DatabaseHelper.UpdateTranscript(transcriptId, gradingScaleId, country, transcript.MultiplierValue, transcript.TranscriptTitleTextBox.Text, transcript.gpa, transcript.totalCredits);
                     }
 
-                    var courses = transcript.GetTranscriptCourses();
-                    foreach (var course in courses)
+                    var semesters = transcript.GetSemesters();
+                    foreach (var semester in semesters)
                     {
-                        if (course.Course_ID == 0)
+                        foreach (var course in semester.Courses)
                         {
-                            DatabaseHelper.SaveCourse(transcriptId, course.CourseName, course.Grade, course.CreditHours, (course.CreditHours * transcript.MultiplierValue), course.USConvertedGrade);
-                        }
-                        else
-                        {
-                            DatabaseHelper.UpdateCourse(course.Course_ID, course.CourseName, course.Grade, course.CreditHours, (course.CreditHours * transcript.MultiplierValue), course.USConvertedGrade);
+                            if (course.Course_ID == 0)
+                            {
+                                DatabaseHelper.SaveCourse(transcriptId, course.CourseName, course.Grade, course.CreditHours, (course.CreditHours * transcript.MultiplierValue), course.USConvertedGrade, semester.SemesterName);
+                            }
+                            else
+                            {
+                                DatabaseHelper.UpdateCourse(course.Course_ID, course.CourseName, course.Grade, course.CreditHours, (course.CreditHours * transcript.MultiplierValue), course.USConvertedGrade, semester.SemesterName);
+                            }
                         }
                     }
+
                 }
 
                 MessageBox.Show("Student and transcript data saved successfully.");
@@ -540,11 +598,19 @@ namespace CredentialEvaluationApp
             dateOfBirthPicker.SelectedDate = null;
             applicationTermTextBox.Text = string.Empty;
 
-            GpaTextBlock.Text = "0.000";
+            GpaTextBlock.Text = "0.00";
+            TotalCreditsTextBlock.Text = "0";
+            uniGpa = -1;
             UniGpaHeaderTextBlock.Text = "";
             UniGpaTextBlock.Text = "";
             UniGpaNumTextBlock.Text = "";
+            UniCreditsTextBlock.Text = "";
+            UniTotalCreditsTextBlock.Text = "";
             UniStackPanel.Margin = new Thickness(0, 0, 0, 10);
+            UniExportGrid.Visibility = Visibility.Collapsed;
+            EvenlyWeightSection.Visibility = Visibility.Collapsed;
+            ToggleEvenlyWeightButton.Content = "Evenly Weight Transcripts";
+            ToggleEvenlyWeightButton.FontWeight = FontWeights.Regular;
 
             TranscriptPanel.Children.Clear();
             allTranscripts.Clear();
@@ -602,9 +668,8 @@ namespace CredentialEvaluationApp
 
         //////////////////////////////////////////////////////////////////////////////////////
 
-        private void ExportToExcell_Click(object sender, RoutedEventArgs e)
+        private void ExportToExcell_Click(string ExportLevel)
         {
-
             var saveFileDialog = new SaveFileDialog
             {
                 Filter = "Excel Files (*.xlsx)|*.xlsx",
@@ -617,7 +682,7 @@ namespace CredentialEvaluationApp
                 {
                     var ws = workbook.Worksheets.Add("Calculator Data");
 
-                    // Example: Student info
+                    // Student info
                     ws.Cell(1, 1).Value = "Name:";
                     ws.Cell(1, 2).Value = (student.FirstName + " " + student.LastName);
                     ws.Cell(2, 1).Value = "DOB:";
@@ -628,13 +693,17 @@ namespace CredentialEvaluationApp
 
                     int row = 4;
                     int num = 0;
-                    // Example: Transcript info
-                    foreach (var transcript in allTranscripts)
+
+                    // ✅ Filter transcripts with Level = "High School"
+                    var highSchoolTranscripts = allTranscripts
+                        .Where(t => t.SelectedGradingScaleObject.Level != null && t.SelectedGradingScaleObject.Level.Equals(ExportLevel, StringComparison.OrdinalIgnoreCase));
+
+                    foreach (var transcript in highSchoolTranscripts)
                     {
                         row++;
                         num++;
                         ws.Cell(row, 1).Value = "Transcript " + num + ": ";
-                        if(transcript.TranscriptTitleTextBox.Text != ("Transcript " + num))
+                        if (transcript.TranscriptTitleTextBox.Text != ("Transcript " + num))
                         {
                             ws.Cell(row, 2).Value = transcript.TranscriptTitleTextBox.Text;
                         }
@@ -650,33 +719,35 @@ namespace CredentialEvaluationApp
 
                         ws.Cell(row, 1).Value = "Course Name";
                         ws.Cell(row, 2).Value = "Local Grade";
-                        ws.Cell(row, 3).Value = "US  Grade";
+                        ws.Cell(row, 3).Value = "US Grade";
                         ws.Cell(row, 4).Value = "Credit Hours";
                         ws.Cell(row, 5).Value = "US Credit Hours";
                         ws.Range(row, 1, row, 5).Style.Font.Bold = true;
                         ws.Cell(row++, 1).Style.Fill.BackgroundColor = XLColor.LightGray;
 
-
-                        foreach (var course in transcript.TranscriptCourses)
+                        foreach (var semester in transcript.Semesters)
                         {
+                            // Semester header
                             row++;
-                            ws.Cell(row, 1).Value = course.CourseName;
-                            ws.Cell(row, 2).Value = course.Grade;
-                            ws.Cell(row, 3).Value = course.USConvertedGrade;
-                            ws.Cell(row, 4).Value = course.CreditHours;
-                            ws.Cell(row, 5).Value = course.USCreditHours;
+                            ws.Cell(row, 1).Value = semester.SemesterName;
+                            ws.Range(row, 1, row, 5).Merge().Style.Font.Bold = true;
+
+                            foreach (var course in semester.Courses)
+                            {
+                                row++;
+                                ws.Cell(row, 1).Value = course.CourseName;
+                                ws.Cell(row, 2).Value = course.Grade;
+                                ws.Cell(row, 3).Value = course.USConvertedGrade;
+                                ws.Cell(row, 4).Value = course.CreditHours;
+                                ws.Cell(row, 5).Value = course.USCreditHours;
+                            }
                         }
+
                         row++;
                         ws.Cell(row, 1).Value = "Multiplier: ";
-                        if(transcript.MultiplierTextBox.Text.Length > 0)
-                        {
-                            ws.Cell(row, 2).Value = transcript.MultiplierTextBox.Text;
-                        }
-                        else
-                        {
-                            ws.Cell(row, 2).Value = "1";
-                        }
-                        
+                        ws.Cell(row, 2).Value = transcript.MultiplierTextBox.Text.Length > 0
+                            ? transcript.MultiplierTextBox.Text
+                            : "1";
                         ws.Cell(row++, 1).Style.Font.Bold = true;
                     }
 
@@ -684,6 +755,7 @@ namespace CredentialEvaluationApp
                     ws.Cell(row, 1).Value = "High School GPA: ";
                     ws.Cell(row, 2).Value = hsGpa.ToString("F3");
                     ws.Cell(row++, 1).Style.Font.Bold = true;
+
                     if (uniGpa > -1)
                     {
                         ws.Cell(row, 1).Value = "University GPA: ";
@@ -694,10 +766,7 @@ namespace CredentialEvaluationApp
                     workbook.SaveAs(saveFileDialog.FileName);
                 }
             }
-
         }
-
-
 
         public class CustomFontResolver : IFontResolver
         {
@@ -728,7 +797,7 @@ namespace CredentialEvaluationApp
             }
         }
 
-        private void ExportToPDF_Click(object sender, RoutedEventArgs e)
+        private void ExportToPDF_Click(string ExportLevel)
         {
             var saveFileDialog = new SaveFileDialog
             {
@@ -763,7 +832,11 @@ namespace CredentialEvaluationApp
 
                 int num = 0;
 
-                foreach (var transcript in allTranscripts)
+                // ✅ Filter transcripts for High School
+                var highSchoolTranscripts = allTranscripts
+                    .Where(t => t.SelectedGradingScaleObject.Level != null && t.SelectedGradingScaleObject.Level.Equals(ExportLevel, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var transcript in highSchoolTranscripts)
                 {
                     num++;
                     section.AddParagraph(); // space between transcripts
@@ -776,6 +849,7 @@ namespace CredentialEvaluationApp
                         section.AddParagraph(transcript.TranscriptTitleTextBox.Text);
                     }
 
+                    // Transcript info table
                     var tTable = section.AddTable();
                     tTable.Borders.Width = 0.5;
                     tTable.AddColumn(MigraDoc.DocumentObjectModel.Unit.FromCentimeter(5));
@@ -802,26 +876,27 @@ namespace CredentialEvaluationApp
                     headerRow.Cells[3].AddParagraph("Credit Hours").Format.Font.Bold = true;
                     headerRow.Cells[4].AddParagraph("US Credit Hours").Format.Font.Bold = true;
 
-                    foreach (var course in transcript.TranscriptCourses)
+                    foreach (var semester in transcript.Semesters)
                     {
-                        var row = courseTable.AddRow();
-                        row.Cells[0].AddParagraph(course.CourseName);
-                        row.Cells[1].AddParagraph(course.Grade);
-                        row.Cells[2].AddParagraph(course.USConvertedGrade);
-                        row.Cells[3].AddParagraph(course.CreditHours.ToString());
-                        row.Cells[4].AddParagraph(course.USCreditHours.ToString());
+                        // Semester header
+                        var semesterHeaderRow = courseTable.AddRow();
+                        semesterHeaderRow.Cells[0].MergeRight = 4;
+                        semesterHeaderRow.Cells[0].AddParagraph(semester.SemesterName);
+
+                        foreach (var course in semester.Courses)
+                        {
+                            var row = courseTable.AddRow();
+                            row.Cells[0].AddParagraph(course.CourseName);
+                            row.Cells[1].AddParagraph(course.Grade);
+                            row.Cells[2].AddParagraph(course.USConvertedGrade);
+                            row.Cells[3].AddParagraph(course.CreditHours.ToString());
+                            row.Cells[4].AddParagraph(course.USCreditHours.ToString());
+                        }
                     }
 
                     // Multiplier row
-                    if(transcript.MultiplierTextBox.Text.Length > 0)
-                    {
-                        AddRow(tTable, "Multiplier:", transcript.MultiplierTextBox.Text, true);
-                    }
-                    else
-                    {
-                        AddRow(tTable, "Multiplier:", "1");
-                    }
-                    
+                    AddRow(tTable, "Multiplier:",
+                        transcript.MultiplierTextBox.Text.Length > 0 ? transcript.MultiplierTextBox.Text : "1", true);
                 }
 
                 section.AddParagraph();
@@ -847,6 +922,7 @@ namespace CredentialEvaluationApp
             }
         }
 
+
         // Helper function to add table rows
         private void AddRow(MigraTable table, string label, string value, bool boldLabel = false)
         {
@@ -856,5 +932,24 @@ namespace CredentialEvaluationApp
             row.Cells[1].AddParagraph(value ?? "");
         }
 
+        private void ExportHSToExcell_Click(object sender, RoutedEventArgs e)
+        {
+            ExportToExcell_Click("High School");
+        }
+
+        private void ExportHSToPDF_Click(object sender, RoutedEventArgs e)
+        {
+            ExportToPDF_Click("High School");
+        }
+
+        private void ExportUniToExcell_Click(object sender, RoutedEventArgs e)
+        {
+            ExportToExcell_Click("University");
+        }
+
+        private void ExportUniToPDF_Click(object sender, RoutedEventArgs e)
+        {
+            ExportToPDF_Click("University");
+        }
     }
-}    
+}

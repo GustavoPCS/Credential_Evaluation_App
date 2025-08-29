@@ -15,6 +15,8 @@ namespace CredentialEvaluationApp.Models
         public string Term { get; set; }
         public double? HSGPA { get; set; }
         public double? UniGPA { get; set; }
+        public double TotalHSCredits { get; set; }
+        public double TotalUNICredits { get; set; }
         public List<Transcript> Transcripts { get; set; }
     }
 }

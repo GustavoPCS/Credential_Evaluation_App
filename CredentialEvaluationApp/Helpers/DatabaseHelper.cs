@@ -138,6 +138,12 @@ namespace CredentialEvaluationApp.Helpers
         {
             List<GradingScale> gradingScales = new List<GradingScale>();
 
+            // Check if connection string is missing
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                return gradingScales; // return empty list
+            }
+
             using (OleDbConnection connection = new OleDbConnection(connectionString))
             {
                 string query = "SELECT GradingScale_ID, Country, ScaleName, [Level] FROM GradingScales";
@@ -202,6 +208,12 @@ namespace CredentialEvaluationApp.Helpers
         {
             List<string> countries = new List<string>();
 
+            // Check if connection string is missing
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                return countries; // return empty list
+            }
+
             string query = "SELECT DISTINCT Country FROM GradingScales WHERE Country <> 'All' ORDER BY Country";
 
             using (OleDbConnection connection = new OleDbConnection(connectionString))
@@ -226,6 +238,7 @@ namespace CredentialEvaluationApp.Helpers
 
             return countries;
         }
+
 
         ////////////////////////////////////////////////
 
@@ -503,7 +516,7 @@ namespace CredentialEvaluationApp.Helpers
         ////////////////////////////////////////////////
 
 
-        public static int SaveStudentAndReturnId(string firstName, string lastName, DateTime? dob, string term, double? hsGpa, double? uniGpa)
+        public static int SaveStudentAndReturnId(string firstName, string lastName, DateTime? dob, string term, double? hsGpa, double? uniGpa, double? totalHSCredits, double? totalUNICredits)
         {
             int studentId = -1;
 
@@ -512,7 +525,7 @@ namespace CredentialEvaluationApp.Helpers
                 conn.Open();
 
                 var cmd = new OleDbCommand(
-                    "INSERT INTO Students (FirstName, LastName, DOB, Term, HS_GPA, Uni_GPA) VALUES (?, ?, ?, ?, ?, ?)", conn);
+                    "INSERT INTO Students (FirstName, LastName, DOB, Term, HS_GPA, Uni_GPA, TotalHSCredits, TotalUNICredits) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", conn);
 
                 cmd.Parameters.AddWithValue("?", firstName);
                 cmd.Parameters.AddWithValue("?", lastName);
@@ -520,6 +533,8 @@ namespace CredentialEvaluationApp.Helpers
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(term) ? (object)DBNull.Value : term);
                 cmd.Parameters.AddWithValue("?", hsGpa ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", uniGpa ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", totalHSCredits ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", totalUNICredits ?? (object)DBNull.Value);
 
                 cmd.ExecuteNonQuery();
 
@@ -532,14 +547,14 @@ namespace CredentialEvaluationApp.Helpers
         }
 
 
-        public static void UpdateStudent(int studentId, string firstName, string lastName, DateTime? dob, string term, double? hsGpa, double? uniGpa)
+        public static void UpdateStudent(int studentId, string firstName, string lastName, DateTime? dob, string term, double? hsGpa, double? uniGpa, double? totalHSCredits, double? totalUNICredits)
         {
             using (var conn = new OleDbConnection(connectionString))
             {
                 conn.Open();
 
                 var cmd = new OleDbCommand(
-                    "UPDATE Students SET FirstName = ?, LastName = ?, DOB = ?, Term = ?, HS_GPA = ?, Uni_GPA = ? WHERE Student_ID = ?", conn);
+                    "UPDATE Students SET FirstName = ?, LastName = ?, DOB = ?, Term = ?, HS_GPA = ?, Uni_GPA = ?, TotalHSCredits = ?, TotalUNICredits = ? WHERE Student_ID = ?", conn);
 
                 cmd.Parameters.AddWithValue("?", firstName);
                 cmd.Parameters.AddWithValue("?", lastName);
@@ -547,6 +562,8 @@ namespace CredentialEvaluationApp.Helpers
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(term) ? (object)DBNull.Value : term);
                 cmd.Parameters.AddWithValue("?", hsGpa ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", uniGpa ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", totalHSCredits ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", totalUNICredits ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", studentId);
 
                 cmd.ExecuteNonQuery();
@@ -557,7 +574,7 @@ namespace CredentialEvaluationApp.Helpers
 
 
 
-        public static int SaveTranscript(int studentId, int? gradingScaleId, string country, double? multiplier)
+        public static int SaveTranscript(int studentId, int? gradingScaleId, string country, double? multiplier, string transcriptName, double? transcriptGPA, double? transcriptCredits)
         {
             int transcriptId = -1;
 
@@ -566,11 +583,14 @@ namespace CredentialEvaluationApp.Helpers
                 conn.Open();
 
                 var cmd = new OleDbCommand(
-                    "INSERT INTO StudentTranscripts (Student_ID, GradingScale_ID, Country, Multiplier) VALUES (?, ?, ?, ?)", conn);
+                    "INSERT INTO StudentTranscripts (Student_ID, GradingScale_ID, Country, Multiplier, TranscriptName, TranscriptGPA, TranscriptCredits) VALUES (?, ?, ?, ?, ?, ?, ?)", conn);
                 cmd.Parameters.AddWithValue("?", studentId);
                 cmd.Parameters.AddWithValue("?", gradingScaleId ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(country) ? (object)DBNull.Value : country);
                 cmd.Parameters.AddWithValue("?", multiplier ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(transcriptName) ? (object)DBNull.Value : transcriptName);
+                cmd.Parameters.AddWithValue("?", transcriptGPA ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", transcriptCredits ?? (object)DBNull.Value);
                 cmd.ExecuteNonQuery();
 
                 // Get last inserted ID
@@ -581,17 +601,20 @@ namespace CredentialEvaluationApp.Helpers
             return transcriptId;
         }
 
-        public static void UpdateTranscript(int transcriptId, int? gradingScaleId, string country, double? multiplier)
+        public static void UpdateTranscript(int transcriptId, int? gradingScaleId, string country, double? multiplier, string transcriptName, double? transcriptGPA, double? transcriptCredits)
         {
             using (var conn = new OleDbConnection(connectionString))
             {
                 conn.Open();
                 var cmd = new OleDbCommand(
-                    "UPDATE StudentTranscripts SET GradingScale_ID = ?, Country = ?, Multiplier = ? WHERE Transcript_ID = ?", conn);
+                    "UPDATE StudentTranscripts SET GradingScale_ID = ?, Country = ?, Multiplier = ?, TranscriptName = ?, TranscriptGPA = ?, TranscriptCredits = ? WHERE Transcript_ID = ?", conn);
 
                 cmd.Parameters.AddWithValue("?", gradingScaleId ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrWhiteSpace(country) ? (object)DBNull.Value : country);
                 cmd.Parameters.AddWithValue("?", multiplier ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", string.IsNullOrWhiteSpace(transcriptName) ? (object)DBNull.Value : transcriptName);
+                cmd.Parameters.AddWithValue("?", transcriptGPA ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("?", transcriptCredits ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", transcriptId);
 
                 cmd.ExecuteNonQuery();
@@ -602,39 +625,41 @@ namespace CredentialEvaluationApp.Helpers
 
 
 
-        public static void SaveCourse(int? transcriptId, string courseName, string grade, double? creditHours, double? usCreditHours, string usGrade)
+        public static void SaveCourse(int? transcriptId, string courseName, string grade, double? creditHours, double? usCreditHours, string usGrade, string semesterName)
         {
             using (var conn = new OleDbConnection(connectionString))
             {
                 conn.Open();
 
                 var cmd = new OleDbCommand(
-                    "INSERT INTO TranscriptCourses (Transcript_ID, CourseName, Grade, CreditHours, USCreditHours, USGrade) VALUES (?, ?, ?, ?, ?, ?)", conn);
+                    "INSERT INTO TranscriptCourses (Transcript_ID, CourseName, Grade, CreditHours, USCreditHours, USGrade, Semester) VALUES (?, ?, ?, ?, ?, ?, ?)", conn);
                 cmd.Parameters.AddWithValue("?", transcriptId ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(courseName) ? (object)DBNull.Value : courseName);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(grade) ? (object)DBNull.Value : grade);
                 cmd.Parameters.AddWithValue("?", creditHours ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", usCreditHours ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(usGrade) ? (object)DBNull.Value : usGrade);
+                cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(semesterName) ? (object)DBNull.Value : semesterName);
 
                 cmd.ExecuteNonQuery();
             }
         }
 
 
-        public static void UpdateCourse(int courseId, string courseName, string grade, double? creditHours, double? usCreditHours, string usGrade)
+        public static void UpdateCourse(int courseId, string courseName, string grade, double? creditHours, double? usCreditHours, string usGrade, string semesterName)
         {
             using (var conn = new OleDbConnection(connectionString))
             {
                 conn.Open();
                 var cmd = new OleDbCommand(
-                    "UPDATE TranscriptCourses SET CourseName = ?, Grade = ?, CreditHours = ?, USCreditHours = ?, USGrade = ? WHERE Course_ID = ?", conn);
+                    "UPDATE TranscriptCourses SET CourseName = ?, Grade = ?, CreditHours = ?, USCreditHours = ?, USGrade = ?, Semester = ? WHERE Course_ID = ?", conn);
 
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(courseName) ? (object)DBNull.Value : courseName);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(grade) ? (object)DBNull.Value : grade);
                 cmd.Parameters.AddWithValue("?", creditHours ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", usCreditHours ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(usGrade) ? (object)DBNull.Value : usGrade);
+                cmd.Parameters.AddWithValue("?", string.IsNullOrEmpty(semesterName) ? (object)DBNull.Value : semesterName);
                 cmd.Parameters.AddWithValue("?", courseId);
 
                 cmd.ExecuteNonQuery();
@@ -803,6 +828,18 @@ namespace CredentialEvaluationApp.Helpers
                             ? Convert.ToDouble(reader["Multiplier"])
                             : 1.0,
 
+                                TranscriptName = reader["TranscriptName"] != DBNull.Value
+                            ? reader["TranscriptName"].ToString()
+                            : string.Empty,
+
+                                TranscriptGPA = reader["TranscriptGPA"] != DBNull.Value
+                            ? (double)Convert.ToDouble(reader["TranscriptGPA"])
+                            : 0,
+
+                                TranscriptCredits = reader["TranscriptCredits"] != DBNull.Value
+                            ? (double)Convert.ToDouble(reader["TranscriptCredits"])
+                            : 0,
+
                                 Courses = new List<CourseEntry>() // Empty for now
                             };
 
@@ -873,7 +910,8 @@ namespace CredentialEvaluationApp.Helpers
                                 Grade = reader["Grade"].ToString(),
                                 CreditHours = reader.GetDouble(reader.GetOrdinal("CreditHours")),
                                 USCreditHours = Convert.ToDouble(reader["USCreditHours"]),
-                                USConvertedGrade = reader["USGrade"].ToString() // Or null if you prefer
+                                USConvertedGrade = reader["USGrade"].ToString(), // Or null if you prefer
+                                SemesterName = reader["Semester"] != DBNull.Value ? reader["Semester"].ToString() : string.Empty
                             };
 
                             courses.Add(course);
@@ -884,6 +922,32 @@ namespace CredentialEvaluationApp.Helpers
 
             return courses;
         }
+
+
+        public static void DeleteCourse(int courseId)
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                return; // No DB connection available
+
+            string query = "DELETE FROM TranscriptCourses WHERE Course_ID = @CourseId";
+
+            using (OleDbConnection connection = new OleDbConnection(connectionString))
+            using (OleDbCommand command = new OleDbCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@CourseId", courseId);
+
+                try
+                {
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error deleting course: " + ex.Message);
+                }
+            }
+        }
+
 
 
 

@@ -10,13 +10,19 @@
                 Click="DeleteCourse_Click"
                 Tag="{Binding}"
                 FontSize="8"
-                Padding="4,0"
                 MaxHeight="10"
-                HorizontalAlignment="Center"
-                Background="#E57373" 
-                Foreground="White"/>
+                MaxWidth="50"
+                Padding="4,0"
+                Background="#E57373"
+                Foreground="White"
+                HorizontalAlignment="Center"/>
         </DataTemplate>
+
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
     </UserControl.Resources>
+
+
 
 
     <Border CornerRadius="10"
@@ -94,71 +100,129 @@
                       HorizontalAlignment="Left"
                       SelectionChanged="gradingScaleComboBox_SelectionChanged"/>
 
-            <!-- Transcript Table Section -->
-            <StackPanel Orientation="Horizontal" Margin="15,15,0,0" HorizontalAlignment="Left" Width="330">
-                <TextBlock Text="Transcript Courses"
-                           FontFamily="pack://application:,,,/Fonts/#Quicksand"
-                           FontWeight="Regular"
-                           FontSize="11"
-                           Margin="0,0,0,1.5"
-                           VerticalAlignment="Center"/>
-                <Button x:Name="EditToggleButton"
-                        Content="Edit"
-                        Click="ToggleEditMode_Click"
-                        FontSize="10"
-                        Padding="0"
-                        Margin="10,0,0,0"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Foreground="Purple"
-                        Cursor="Hand"
-                        VerticalAlignment="Center"
-                        FontFamily="pack://application:,,,/Fonts/#Quicksand"
-                        FontWeight="Regular"/>
-            </StackPanel>
-
             <!-- Transcript DataGrid -->
-            <DataGrid x:Name="transcriptDataGrid"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      Margin="15,0,0,10"
-                      ItemsSource="{Binding TranscriptCourses}"
-                      SelectionMode="Single"
-                      SelectionUnit="Cell"
-                      IsReadOnly="False"
-                      FontSize="10"
-                      HorizontalAlignment="Left"
-                      RowHeight="30"
-                      Style="{StaticResource MaterialDesignDataGrid}"
-                      RowStyle="{StaticResource MaterialDesignDataGridRow}">
+            <ItemsControl ItemsSource="{Binding Semesters}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,15,0,15">
 
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Course" Binding="{Binding CourseName}" Width="130"/>
+                            <!-- Semester Header Row -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,0">
+                                <!-- Semester Name -->
+                                <TextBlock Text="{Binding SemesterName}"
+                                           FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                                           FontSize="12"
+                                           FontWeight="Regular"
+                                           VerticalAlignment="Center"
+                                           Margin="15,0,0,0"/>
 
-                    <DataGridTemplateColumn Header="Grade" Width="100">
-                        <DataGridTemplateColumn.CellStyle>
-                            <Style TargetType="DataGridCell" BasedOn="{StaticResource MaterialDesignDataGridCell}">
-                                <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridCell_PreviewMouseLeftButtonDown"/>
-                            </Style>
-                        </DataGridTemplateColumn.CellStyle>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <ComboBox ItemsSource="{Binding DataContext.AvailableGrades, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                          SelectedItem="{Binding Grade, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Grade}" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                                <!-- Edit Toggle Button (per semester) -->
+                                <Button Content="Edit"
+                                        Click="ToggleEditMode_Click"
+                                        FontSize="10"
+                                        Padding="0"
+                                        Margin="10,0,0,0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="Purple"
+                                        Cursor="Hand"
+                                        VerticalAlignment="Center"
+                                        FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                                        FontWeight="Regular"
+                                        Tag="{Binding}" />
 
-                    <DataGridTextColumn Header="Credit Hours" Binding="{Binding CreditHours}" Width="100"/>
-                </DataGrid.Columns>
-            </DataGrid>
+                                <Button x:Name="DeleteSemesterButton"
+                                        Content="Delete"
+                                        Click="DeleteSemester_Click"
+                                        FontSize="10"
+                                        Padding="0"
+                                        Margin="10,0,0,0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="Crimson"
+                                        Cursor="Hand"
+                                        VerticalAlignment="Center"
+                                        FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                                        FontWeight="Regular"
+                                        Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-            <!-- First Name Field -->
+                            </StackPanel>
+
+                            <!-- Semester DataGrid -->
+                            <DataGrid x:Name="transcriptDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" Margin="15,0,0,0" ItemsSource="{Binding Courses}" SelectionMode="Single" SelectionUnit="Cell" IsReadOnly="False" FontSize="10" HorizontalAlignment="Left" RowHeight="30" Style="{StaticResource MaterialDesignDataGrid}" RowStyle="{StaticResource MaterialDesignDataGridRow}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Course" Binding="{Binding CourseName}" Width="130"/>
+                                    <DataGridTemplateColumn Header="Grade" Width="100">
+                                        <DataGridTemplateColumn.CellStyle>
+                                            <Style TargetType="DataGridCell" BasedOn="{StaticResource MaterialDesignDataGridCell}">
+                                                <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridCell_PreviewMouseLeftButtonDown"/>
+                                            </Style>
+                                        </DataGridTemplateColumn.CellStyle>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{Binding DataContext.AvailableGrades, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Grade, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Grade}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Credit Hours" Binding="{Binding CreditHours}" Width="100"/>
+
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- Add Course Button -->
+                            <Button Content="Add Course"
+                                    Width="95"
+                                    Height="20"
+                                    Margin="15,15,0,0"
+                                    FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                                    FontSize="11"
+                                    FontWeight="Regular"
+                                    Background="#CCCCCC"
+                                    Foreground="Black"
+                                    BorderThickness="0"
+                                    HorizontalAlignment="Left"
+                                    Cursor="Hand"
+                                    Tag="{Binding}"
+                                    Click="AddCourse_Click">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="7"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Add Semester Button -->
+            <Button Content="Add Semester"
+                    Width="105"
+                    Height="20"
+                    Margin="15,20,0,10"
+                    FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                    FontSize="11"
+                    FontWeight="Regular"
+                    Background="#CCCCCC"
+                    Foreground="Black"
+                    BorderThickness="0"
+                    HorizontalAlignment="Left"
+                    Cursor="Hand"
+                    Click="AddSemester_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="7"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+
+            <!-- Multiplier Field -->
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Left"
                         Margin="15,15,0,10">
@@ -180,26 +244,37 @@
                          HorizontalAlignment="Left"/>
             </StackPanel>
 
-            <!-- Add Course Button -->
-            <Button Content="Add Course"
-                    Width="95"
-                    Height="20"
-                    Margin="0,0,0,20"
-                    FontFamily="pack://application:,,,/Fonts/#Quicksand"
-                    FontSize="11"
-                    FontWeight="Regular"
-                    Background="#CCCCCC"
-                    Foreground="Black"
-                    BorderThickness="0"
-                    HorizontalAlignment="Center"
-                    Cursor="Hand"
-                    Click="AddCourse_Click">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="7"/>
-                    </Style>
-                </Button.Resources>
-            </Button>
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Margin="0,0,0,20">
+
+                <TextBlock Text="GPA: "
+                           Margin="0,0"
+                           FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                           FontWeight="Regular"
+                           FontSize="15"/>
+
+                <TextBlock x:Name="TranscriptGPATextBlock"
+                           Text="0.00"
+                           Margin="0,0"
+                           FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                           FontWeight="Regular"
+                           FontSize="15"/>
+
+                <TextBlock Text="Credits: "
+                           Margin="20,0,0,0"
+                           FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                           FontWeight="Regular"
+                           FontSize="15"/>
+
+                <TextBlock x:Name="TranscriptCreditsTextBlock"
+                           Text="0"
+                           Margin="0,0"
+                           FontFamily="pack://application:,,,/Fonts/#Quicksand"
+                           FontWeight="Regular"
+                           FontSize="15"/>
+            </StackPanel>
+
         </StackPanel>
     </Border>
 </UserControl>

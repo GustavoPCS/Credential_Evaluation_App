@@ -25,7 +25,7 @@ namespace CredentialEvaluationApp
     {
         private GradingScale scale = new GradingScale();
 
-        private ObservableCollection<GradingScale> allGradingScales;    
+        private ObservableCollection<GradingScale> allGradingScales;
         private ObservableCollection<GradingScale> filteredGradingScales;
         public ObservableCollection<GradingScaleMapping> Mappings { get; set; } = new ObservableCollection<GradingScaleMapping>();
         public ObservableCollection<string> USGrades { get; set; } = new ObservableCollection<string>();
@@ -41,7 +41,7 @@ namespace CredentialEvaluationApp
             GradingScaleInfo.Visibility = Visibility.Collapsed;
 
             // Add sample rows
-            Mappings.Add(new GradingScaleMapping { LocalGrade="", USEquivalent = "", USLetter = "" });
+            Mappings.Add(new GradingScaleMapping { LocalGrade = "", USEquivalent = "", USLetter = "" });
             Mappings.Add(new GradingScaleMapping { LocalGrade = "", USEquivalent = "", USLetter = "" });
             Mappings.Add(new GradingScaleMapping { LocalGrade = "", USEquivalent = "", USLetter = "" });
 
@@ -153,7 +153,7 @@ namespace CredentialEvaluationApp
                 {
                     FadeElement(SearchBox, false, 0.2, () =>
                     {
-                        FadeElement(DeleteGradingScaleButton, false, 0.2, () => 
+                        FadeElement(DeleteGradingScaleButton, false, 0.2, () =>
                         {
 
                             FadeElement(GradingScaleInfo, true, 0.2);
@@ -234,7 +234,7 @@ namespace CredentialEvaluationApp
 
         private void LoadUSGrades()
         {
-            
+
             var usEquivalentService = new US_EquivalentService();
             USGrades = usEquivalentService.GetUS_Grades();
 
@@ -313,7 +313,7 @@ namespace CredentialEvaluationApp
         }
 
         ////////////////////////////////////////////////
-
+        public event Action GradingScaleUpdated;
         private void Save_Click(object sender, RoutedEventArgs e)
         {
 
@@ -358,6 +358,9 @@ namespace CredentialEvaluationApp
             LoadGradingScales();
             MessageBox.Show("Grading scale saved successfully.");
 
+            // Notify all listeners
+            AppEvents.OnGradingScaleUpdated();
+
 
             FadeElement(GradingScaleInfo, false, 0.2, () =>
             {
@@ -396,6 +399,7 @@ namespace CredentialEvaluationApp
             {
                 LoadGradingScales();
                 MessageBox.Show("Grading scale deleted successfully.");
+                AppEvents.OnGradingScaleUpdated();
             }
             else
             {

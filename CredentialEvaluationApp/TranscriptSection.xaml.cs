@@ -4,6 +4,7 @@ using CredentialEvaluationApp.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -22,23 +23,45 @@ using System.Windows.Shapes;
 
 namespace CredentialEvaluationApp
 {
-    public partial class TranscriptSection : UserControl
+    public partial class TranscriptSection : UserControl, INotifyPropertyChanged
     {
-        public ObservableCollection<CourseEntry> TranscriptCourses { get; set; } = new ObservableCollection<CourseEntry>();
+        public ObservableCollection<Semester> Semesters { get; set; } = new ObservableCollection<Semester>();
         public ObservableCollection<string> AvailableGrades { get; set; } = new ObservableCollection<string>();
         public string SelectedGradingScale { get => gradingScaleComboBox.SelectedItem as string; }
 
-        public int TranscriptID { get; set; } = 0;
+        public double totalCredits = 0;
+        public double gpa = 0;
 
+        public int TranscriptID { get; set; } = 0;
         public List<CourseEntry> GetTranscriptCourses()
         {
-        
-            return transcriptDataGrid.ItemsSource.Cast<CourseEntry>().ToList(); 
-        
+            return Semesters
+                .SelectMany(s => s.Courses)
+                .ToList();
+        }
+
+        public ObservableCollection<Semester> GetSemesters()
+        {
+            return Semesters;
         }
 
 
-        private bool isEditMode = false;
+        private bool _isEditMode;
+        public bool IsEditMode
+        {
+            get => _isEditMode;
+            set
+            {
+                _isEditMode = value;
+                OnPropertyChanged(nameof(IsEditMode));
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
         private DataGridTemplateColumn deleteColumn;
         public event EventHandler TranscriptDeleted;
 
@@ -51,11 +74,9 @@ namespace CredentialEvaluationApp
             InitializeComponent();
 
             // Add sample rows
-            TranscriptCourses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
-            TranscriptCourses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
-            TranscriptCourses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
+            Semesters.Add(new Semester { SemesterName = "Semester 1" });
+            Semesters.Last().Courses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
 
-            transcriptDataGrid.ItemsSource = TranscriptCourses;
             DataContext = this;
 
             LoadCountries();
@@ -84,12 +105,12 @@ namespace CredentialEvaluationApp
             TranscriptDeleted?.Invoke(this, EventArgs.Empty);
         }
 
-        private void LoadCountries(string gradingScale = null)
+        public void LoadCountries(string gradingScale = null)
         {
             countryComboBox.ItemsSource = CountryService.GetCountries(gradingScale);
         }
 
-        private void LoadGradingScales(string country = null)
+        public void LoadGradingScales(string country = null)
         {
             var scaleNames = GradingScaleService.GetGradingScales(country);
 
@@ -143,41 +164,159 @@ namespace CredentialEvaluationApp
             }
         }
 
+
         private void ToggleEditMode_Click(object sender, RoutedEventArgs e)
         {
-            isEditMode = !isEditMode;
-
-            if (isEditMode)
+            if (sender is Button button)
             {
-                if (!transcriptDataGrid.Columns.Contains(deleteColumn))
+                // Get the Semester this button belongs to
+                if (button.Tag is not Semester semester)
+                    return;
+
+                semester.IsEditMode = !semester.IsEditMode;
+
+                // Find the DataGrid in the same parent container
+                var dataGrid = FindDataGridForButton(button);
+                if (dataGrid == null)
                 {
-                    transcriptDataGrid.Columns.Add(deleteColumn);
+                    MessageBox.Show("Edit mode toggled");
+                    return;
                 }
 
-                EditToggleButton.Content = "Close";
-            }
-            else
-            {
-                if (transcriptDataGrid.Columns.Contains(deleteColumn))
+                // Check if Delete column already exists
+                var deleteColumn = dataGrid.Columns.FirstOrDefault(c => c.Header?.ToString() == "");
+                if (deleteColumn != null)
                 {
-                    transcriptDataGrid.Columns.Remove(deleteColumn);
+                    // Remove the Delete column
+                    dataGrid.Columns.Remove(deleteColumn);
+                    button.Content = "Edit";
                 }
+                else
+                {
+                    // Add Delete column
+                    deleteColumn = new DataGridTemplateColumn
+                    {
+                        Header = "",
+                        Width = 80,
+                        CellTemplate = (DataTemplate)FindResource("DeleteButtonTemplate")
+                    };
+                    dataGrid.Columns.Add(deleteColumn);
+                    button.Content = "Close";
 
-                EditToggleButton.Content = "Edit";
+                }
             }
         }
 
+        private DataGrid FindDataGridForButton(DependencyObject source)
+        {
+            // 1) Find the ItemsControl that owns this template
+            var itemsControl = FindAncestor<ItemsControl>(source);
+            if (itemsControl == null) return null;
+
+            // 2) Get the specific item container (ContentPresenter) that contains this button
+            var container = ItemsControl.ContainerFromElement(itemsControl, source) as ContentPresenter;
+            if (container == null) return null;
+
+            // 3) Look up the named DataGrid in THIS item's DataTemplate only
+            //    (make sure your DataGrid has x:Name="transcriptDataGrid" in the DataTemplate)
+            var dg = container.ContentTemplate?.FindName("transcriptDataGrid", container) as DataGrid;
+            if (dg != null) return dg;
+
+            // Fallback: scoped visual search under just this container (not the whole ItemsControl)
+            return FindChild<DataGrid>(container);
+        }
+
+        // Helpers
+        private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T match) return match;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
+        private static T FindChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var result = FindChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+
+
+
+
+        private void DeleteSemester_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is Semester semesterToDelete)
+            {
+                // Remove from the collection
+                if (Semesters.Contains(semesterToDelete))
+                {
+                    Semesters.Remove(semesterToDelete);
+                }
+
+            }
+        }
+
+
+
+
         private void AddCourse_Click(object sender, RoutedEventArgs e)
         {
-            TranscriptCourses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
+            if (sender is Button button && button.Tag is Semester semester)
+            {
+                semester.Courses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
+            }
         }
 
         private void DeleteCourse_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is CourseEntry course)
             {
-                TranscriptCourses.Remove(course);
+                // Remove from UI (in-memory collection)
+                var semester = FindSemesterForCourse(course);
+                if (semester != null)
+                {
+                    semester.Courses.Remove(course);
+                }
+
+                // Remove from database
+                if (course.Course_ID > 0) // only delete if it exists in DB
+                {
+                    DatabaseHelper.DeleteCourse(course.Course_ID);
+                }
             }
+        }
+
+
+        // Helper: find the semester of a course
+        private Semester FindSemesterForCourse(CourseEntry course)
+        {
+            // Assuming you have a ViewModel or collection of semesters called Semesters
+            foreach (var sem in Semesters)
+            {
+                if (sem.Courses.Contains(course))
+                    return sem;
+            }
+            return null;
+        }
+
+
+        private void AddSemester_Click(object sender, RoutedEventArgs e)
+        {
+            int semesterNumber = Semesters.Count + 1;
+            Semesters.Add(new Semester { SemesterName = $"Semester {semesterNumber}" });
+            Semesters.Last().Courses.Add(new CourseEntry { CourseName = "", Grade = "", CreditHours = 0 });
         }
 
         public double MultiplierValue
@@ -227,5 +366,6 @@ namespace CredentialEvaluationApp
 
             return FindParent<T>(parentObject);
         }
+
     }
 }

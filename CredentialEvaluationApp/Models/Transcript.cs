@@ -14,6 +14,9 @@ namespace CredentialEvaluationApp.Models
         public int GradingScale_ID { get; set; }
         public string Country { get; set; }
         public double Multiplier { get; set; }
+        public string TranscriptName { get; set; }
+        public double TranscriptGPA { get; set; }
+        public double TranscriptCredits { get; set; }
         public List<CourseEntry> Courses { get; set; }
 
         private GradingScale _gradingScale;
