@@ -356,10 +356,6 @@ namespace CredentialEvaluationApp
             UpdateTranscriptEnabledStates();
         }
 
-
-
-
-
         private void EvenlyWeightButton_Click(object sender, RoutedEventArgs e)
         {
             var selectedTranscripts = allTranscripts.Where(t => t.IsSelected).ToList();
@@ -516,8 +512,6 @@ namespace CredentialEvaluationApp
 
         }
 
-
-
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             string firstName = firstNameTextBox.Text.Trim();
@@ -598,6 +592,7 @@ namespace CredentialEvaluationApp
             dateOfBirthPicker.SelectedDate = null;
             applicationTermTextBox.Text = string.Empty;
 
+            hsGpa = 0.00;
             GpaTextBlock.Text = "0.00";
             TotalCreditsTextBlock.Text = "0";
             uniGpa = -1;
